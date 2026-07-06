@@ -140,7 +140,7 @@
     <h1>🎯 당신의 <span>게이더</span>를 믿으세요</h1>
     
     <div class="quiz-card" style="margin-bottom: 30px;">
-        <label style="display:block; margin-bottom:10px; color:var(--text-muted);">플레이어 이름을 입력해주세요</label>
+        <label style="display:block; margin-bottom:10px; color:var(--text-muted);">닉네임을 입력해주세요</label>
         <input type="text" id="playerName" placeholder="닉네임 입력" style="width:100%; padding:12px; box-sizing:border-box; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px;">
     </div>
 
@@ -208,7 +208,7 @@
         quizData[index].userAnswer = button.getAttribute('data-value');
     }
 
-    // 4. 채점 및 결과 제출
+    // 4. 채점 및 결과 제출 (수정됨: 사용자에게 점수 비공개)
     async function submitAnswers() {
         const playerName = document.getElementById('playerName').value.trim();
         if(!playerName) {
@@ -219,14 +219,15 @@
         let score = 0;
         let total = quizData.length;
 
+        // 내부적으로 점수 계산 (구글 시트 전송용)
         quizData.forEach(item => {
             if(item.userAnswer === item.correctAnswer) {
                 score++;
             }
         });
 
-        // 결과 화면 표시
-        document.getElementById('score-text').innerText = `${total}개 중 ${score}개 맞추셨습니다!`;
+        // 결과 화면 표시 (점수 대신 완료 문구 노출)
+        document.getElementById('score-text').innerText = `제출이 완료되었습니다!`;
         document.getElementById('result').style.display = 'block';
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 
