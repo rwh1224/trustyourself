@@ -158,7 +158,7 @@
 </div>
 
 <script>
-    // ⚠️ 배포한 구글 앱스 스크립트(Web App) URL을 여기에 넣으세요.
+    // 입력해주신 구글 앱스 스크립트 웹앱 주소 유지
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwUiRcepdn1Aln6u-48O304xtw2Npd8NjD5tEGbDMlER5ZBvpuSbQk304PcCLOEm94R/exec"; 
 
     let quizData = [];
@@ -166,11 +166,14 @@
     // 1. 구글 시트에서 데이터 가져오기
     async function loadQuiz() {
         try {
-            const response = await fetch(`${GAS_URL}?action=getQuiz`);
+            // 브라우저 캐싱 방지를 위해 timestamp 추가 및 redirect 대응
+            const response = await fetch(`${GAS_URL}?action=getQuiz&_ts=${Date.now()}`);
+            if (!response.ok) throw new Error('Network response was not ok');
             quizData = await response.json();
             renderQuiz();
         } catch (e) {
-            document.getElementById('quiz-container').innerText = "데이터를 불러오는 데 실패했습니다.";
+            console.error(e);
+            document.getElementById('quiz-container').innerText = "데이터를 불러오는 데 실패했습니다. 구글 앱스 스크립트 배포 설정(모든 사용자 권한)을 확인해 주세요.";
         }
     }
 
@@ -178,6 +181,11 @@
     function renderQuiz() {
         const container = document.getElementById('quiz-container');
         container.innerHTML = '';
+
+        if(quizData.length === 0) {
+            container.innerText = "가져올 퀴즈 데이터가 없습니다.";
+            return;
+        }
 
         quizData.forEach((item, index) => {
             const card = document.createElement('div');
@@ -199,42 +207,47 @@
         const index = button.getAttribute('data-index');
         const parent = button.parentElement;
         
-        // 해당 카드의 기존 선택 제거
         parent.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('selected'));
-        // 현재 버튼 선택
         button.classList.add('selected');
         
-        // 정답 데이터 저장 구조 마련
         quizData[index].userAnswer = button.getAttribute('data-value');
     }
 
-    // 4. 채점 및 결과 제출 (수정됨: 사용자에게 점수 비공개)
+    // 4. 채점 및 결과 제출 (사용자에게 점수 비공개)
     async function submitAnswers() {
         const playerName = document.getElementById('playerName').value.trim();
         if(!playerName) {
-            alert('플레이어 이름을 입력해주세요!');
+            alert('닉네임을 입력해주세요!');
+            return;
+        }
+
+        // 모든 문항에 답을 했는지 검증
+        const unanswered = quizData.some(item => !item.userAnswer);
+        if (unanswered) {
+            alert('모든 문항의 O, X를 선택해주세요!');
             return;
         }
 
         let score = 0;
         let total = quizData.length;
 
-        // 내부적으로 점수 계산 (구글 시트 전송용)
+        // 내부 점수 계산
         quizData.forEach(item => {
             if(item.userAnswer === item.correctAnswer) {
                 score++;
             }
         });
 
-        // 결과 화면 표시 (점수 대신 완료 문구 노출)
+        // UI에 먼저 완료 상태 표시
         document.getElementById('score-text').innerText = `제출이 완료되었습니다!`;
         document.getElementById('result').style.display = 'block';
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 
-        // 다른 스프레드시트에 기록 전송
+        // 정적인 gh-pages 브랜치 환경에서 CORS 처리가 매끄럽도록 URLSearchParams 구성 보강
         try {
             await fetch(GAS_URL, {
                 method: "POST",
+                mode: "no-cors", // GitHub Pages 환경에서 오류 없이 패스를 넘기기 위한 보안 모드 설정
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: new URLSearchParams({
                     action: "saveResult",
@@ -243,7 +256,7 @@
                 })
             });
         } catch(e) {
-            console.error("결과 저장 실패", e);
+            console.error("결과 전송 중 예외 발생:", e);
         }
     }
 
