@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>당신의 게이더를 믿으세요</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #ec4899;
+            --accent-glow: rgba(236, 72, 153, 0.3);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: var(--text-main);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        h1 span {
+            color: var(--accent);
+        }
+
+        .quiz-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .nickname {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .statement {
+            font-size: 1.2rem;
+            font-weight: 500;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .options {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-option {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid transparent;
+            color: var(--text-main);
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* 선택되었을 때 스타일 */
+        .btn-option.selected[data-value="O"] {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .btn-option.selected[data-value="X"] {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .submit-box {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .btn-submit {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px var(--accent-glow);
+            transition: transform 0.2s;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+        }
+
+        #result {
+            display: none;
+            text-align: center;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            border: 2px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎯 당신의 <span>게이더</span>를 믿으세요</h1>
+    
+    <div class="quiz-card" style="margin-bottom: 30px;">
+        <label style="display:block; margin-bottom:10px; color:var(--text-muted);">플레이어 이름을 입력해주세요</label>
+        <input type="text" id="playerName" placeholder="닉네임 입력" style="width:100%; padding:12px; box-sizing:border-box; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px;">
+    </div>
+
+    <div id="quiz-container">Loading...</div>
+
+    <div class="submit-box">
+        <button class="btn-submit" onclick="submitAnswers()">결과 확인하기</button>
+    </div>
+
+    <div id="result" style="margin-top: 30px;">
+        <h2>게임 결과</h2>
+        <p id="score-text" style="font-size: 1.5rem; font-weight: bold; margin: 20px 0;"></p>
+        <p style="color: var(--text-muted);">당신의 판단 결과가 저장되었습니다.</p>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 배포한 구글 앱스 스크립트(Web App) URL을 여기에 넣으세요.
+    const GAS_URL = "YOUR_GAS_WEB_APP_URL"; 
+
+    let quizData = [];
+
+    // 1. 구글 시트에서 데이터 가져오기
+    async function loadQuiz() {
+        try {
+            const response = await fetch(`${GAS_URL}?action=getQuiz`);
+            quizData = await response.json();
+            renderQuiz();
+        } catch (e) {
+            document.getElementById('quiz-container').innerText = "데이터를 불러오는 데 실패했습니다.";
+        }
+    }
+
+    // 2. 화면에 퀴즈 렌더링
+    function renderQuiz() {
+        const container = document.getElementById('quiz-container');
+        container.innerHTML = '';
+
+        quizData.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'quiz-card';
+            card.innerHTML = `
+                <div class="nickname">FROM. ${item.nickname}</div>
+                <div class="statement">"${item.statement}"</div>
+                <div class="options">
+                    <button class="btn-option" data-index="${index}" data-value="O" onclick="selectOption(this)">O</button>
+                    <button class="btn-option" data-index="${index}" data-value="X" onclick="selectOption(this)">X</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // 3. O, X 버튼 선택 핸들러
+    function selectOption(button) {
+        const index = button.getAttribute('data-index');
+        const parent = button.parentElement;
+        
+        // 해당 카드의 기존 선택 제거
+        parent.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('selected'));
+        // 현재 버튼 선택
+        button.classList.add('selected');
+        
+        // 정답 데이터 저장 구조 마련
+        quizData[index].userAnswer = button.getAttribute('data-value');
+    }
+
+    // 4. 채점 및 결과 제출
+    async function submitAnswers() {
+        const playerName = document.getElementById('playerName').value.trim();
+        if(!playerName) {
+            alert('플레이어 이름을 입력해주세요!');
+            return;
+        }
+
+        let score = 0;
+        let total = quizData.length;
+
+        quizData.forEach(item => {
+            if(item.userAnswer === item.correctAnswer) {
+                score++;
+            }
+        });
+
+        // 결과 화면 표시
+        document.getElementById('score-text').innerText = `${total}개 중 ${score}개 맞추셨습니다!`;
+        document.getElementById('result').style.display = 'block';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+        // 다른 스프레드시트에 기록 전송
+        try {
+            await fetch(GAS_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    action: "saveResult",
+                    name: playerName,
+                    score: `${score}/${total}`
+                })
+            });
+        } catch(e) {
+            console.error("결과 저장 실패", e);
+        }
+    }
+
+    // 초기 로드
+    window.onload = loadQuiz;
+</script>
+</body>
+</html>
